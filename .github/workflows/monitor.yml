@@ -1,6 +1,5 @@
 name: Ticket Monitor
 
-# Ejecuta cada 5 minutos y permite ejecución manual
 on:
   schedule:
     - cron: "*/5 * * * *"
@@ -10,25 +9,20 @@ jobs:
   check-tickets:
     runs-on: ubuntu-latest
     steps:
-      # 1️⃣ Clona el repositorio
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      # 2️⃣ Configura Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 22
 
-      # 3️⃣ Instala dependencias del proyecto
       - name: Install dependencies
         run: npm install
 
-      # 4️⃣ Instala Chromium con todas las dependencias
-      - name: Install Chromium for Playwright
-        run: npx playwright install --with-deps chromium
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
 
-      # 5️⃣ Ejecuta el monitor
       - name: Run monitor
         run: node monitor.js
         env:
