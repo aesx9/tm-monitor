@@ -7,6 +7,6 @@
     "start": "node monitor.js"
   },
   "dependencies": {
-    "playwright": "^1.47.2"
+    "playwright": "^1.55.0"
   }
 }
