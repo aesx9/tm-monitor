@@ -1,5 +1,6 @@
 import { chromium } from 'playwright';
 import fetch from 'node-fetch';
+import path from 'path';
 
 const urls = [
   "https://www.ticketmaster.es/event/lady-gaga-the-mayhem-ball-entradas/2082455188"
@@ -14,14 +15,20 @@ if (!botToken || !chatId) {
 }
 
 async function checkTickets() {
-  const browser = await chromium.launch({ headless: true });
+  // Obtener ruta absoluta al binario de Chromium que Playwright instala
+  const browserExecutable = chromium.executablePath();
+
+  const browser = await chromium.launch({ 
+    headless: true,
+    executablePath: browserExecutable // <-- clave para GitHub Actions
+  });
+
   const context = await browser.newContext();
   const page = await context.newPage();
 
   for (const url of urls) {
     try {
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-
       const text = await page.textContent('body');
 
       if (text && /agotado/i.test(text)) {
