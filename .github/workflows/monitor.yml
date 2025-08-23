@@ -14,22 +14,19 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      # 2️⃣ Instala Node.js 22
+      # 2️⃣ Configura Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 22
 
-      # 3️⃣ Instala Playwright + Chromium + dependencias del sistema
-      - name: Install Playwright and browsers
-        uses: microsoft/playwright-github-action@v1
-        with:
-          install-deps: true
-          browsers: chromium
-
-      # 4️⃣ Instala dependencias de tu proyecto (playwright, etc.)
-      - name: Install project dependencies
+      # 3️⃣ Instala dependencias del proyecto
+      - name: Install dependencies
         run: npm install
+
+      # 4️⃣ Instala Chromium con todas las dependencias
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
 
       # 5️⃣ Ejecuta el monitor
       - name: Run monitor

@@ -1,50 +1,47 @@
-import { chromium } from "playwright";
+import { chromium } from 'playwright';
+import fetch from 'node-fetch';
 
-// ⚙️ Configuración fija
-const url = "https://www.ticketmaster.es/event/lady-gaga-the-mayhem-ball-entradas/2082455188";
-const botToken = "8232210734:AAG3gBMvqhcGcyiqg_qCfVyw3KEL71OjHSI";
-const chatId = "5971998907";
+const urls = [
+  "https://www.ticketmaster.es/event/lady-gaga-the-mayhem-ball-entradas/2082455188"
+];
 
-// Función para mandar mensajes a Telegram
-async function sendTelegramMessage(message) {
-  try {
-    const resp = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text: message })
-    });
-    const data = await resp.json();
-    if (!data.ok) {
-      console.error("❌ Error al enviar mensaje a Telegram:", data);
-    }
-  } catch (err) {
-    console.error("❌ Fallo en la conexión con Telegram:", err);
-  }
+const botToken = process.env.BOT_TOKEN;
+const chatId = process.env.CHAT_ID;
+
+if (!botToken || !chatId) {
+  console.error("Faltan BOT_TOKEN o CHAT_ID");
+  process.exit(1);
 }
 
-// Función principal
 async function checkTickets() {
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
+  const browser = await chromium.launch({ headless: true }); // headless = obligatorio en Actions
+  const context = await browser.newContext();
+  const page = await context.newPage();
 
-  console.log("🌐 Revisando:", url);
-  await page.goto(url, { waitUntil: "domcontentloaded" });
+  for (const url of urls) {
+    try {
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-  // Extraemos todo el texto del body
-  const content = await page.textContent("body");
+      const text = await page.textContent('body');
 
-  if (content && !content.includes("Agotado")) {
-    console.log("🎟️ ¡Entradas disponibles!");
-    await sendTelegramMessage("🎟️ ¡Entradas disponibles en Ticketmaster!\n" + url);
-  } else {
-    console.log("❌ Sin entradas.");
+      if (text && /agotado/i.test(text)) {
+        console.log(`❌ Entradas agotadas: ${url}`);
+      } else {
+        console.log(`🎟️ ¡Entradas disponibles! ${url}`);
+
+        // Enviar mensaje a Telegram
+        const msg = encodeURIComponent(`🎟️ ¡Entradas disponibles! ${url}`);
+        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${chatId}&text=${msg}`);
+      }
+    } catch (err) {
+      console.error(`Error revisando ${url}:`, err);
+    }
   }
 
   await browser.close();
 }
 
-// 🕒 Ejecutar cada 5 minutos
-setInterval(checkTickets, 5 * 60 * 1000);
-
-// 👉 Llamada inicial inmediata
-checkTickets();
+checkTickets().catch(err => {
+  console.error("Error general:", err);
+  process.exit(1);
+});
