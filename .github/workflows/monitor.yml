@@ -2,7 +2,7 @@ name: Ticket Monitor
 
 on:
   schedule:
-    - cron: "*/5 * * * *"  # cada 5 minutos
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -17,7 +17,25 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install dependencies
+      - name: Install system dependencies for Chromium
+        run: sudo apt-get update && sudo apt-get install -y \
+          libnss3 \
+          libatk-bridge2.0-0 \
+          libx11-xcb1 \
+          libxcomposite1 \
+          libxdamage1 \
+          libxrandr2 \
+          libgbm1 \
+          libpango-1.0-0 \
+          libpangocairo-1.0-0 \
+          libcups2 \
+          libasound2 \
+          libatspi2.0-0 \
+          libgtk-3-0 \
+          libxss1 \
+          libxtst6
+
+      - name: Install project dependencies
         run: npm install
 
       - name: Install Playwright browsers
