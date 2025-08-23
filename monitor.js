@@ -14,7 +14,7 @@ if (!botToken || !chatId) {
 }
 
 async function checkTickets() {
-  const browser = await chromium.launch({ headless: true }); // headless = obligatorio en Actions
+  const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext();
   const page = await context.newPage();
 
@@ -29,7 +29,6 @@ async function checkTickets() {
       } else {
         console.log(`🎟️ ¡Entradas disponibles! ${url}`);
 
-        // Enviar mensaje a Telegram
         const msg = encodeURIComponent(`🎟️ ¡Entradas disponibles! ${url}`);
         await fetch(`https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${chatId}&text=${msg}`);
       }
