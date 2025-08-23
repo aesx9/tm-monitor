@@ -1,10 +1,10 @@
 {
   "name": "tm-monitor",
   "version": "1.0.0",
-  "type": "module",
   "main": "monitor.js",
   "scripts": {
-    "start": "node monitor.js"
+    "start": "node monitor.js",
+    "install-browsers": "npx playwright install chromium"
   },
   "dependencies": {
     "playwright": "^1.55.0",

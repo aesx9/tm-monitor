@@ -1,6 +1,5 @@
-import { chromium } from 'playwright';
-import fetch from 'node-fetch';
-import path from 'path';
+const playwright = require('playwright');
+const fetch = require('node-fetch');
 
 const urls = [
   "https://www.ticketmaster.es/event/lady-gaga-the-mayhem-ball-entradas/2082455188"
@@ -14,26 +13,33 @@ if (!botToken || !chatId) {
   process.exit(1);
 }
 
-  async function checkTickets() {
-  const browser = await chromium.launch({ headless: true }); // simplificado
+async function checkTickets() {
+  const browser = await playwright.chromium.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  });
+  
   const context = await browser.newContext();
   const page = await context.newPage();
 
   for (const url of urls) {
     try {
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      console.log(`Revisando: ${url}`);
+      await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
+      
+      await page.waitForTimeout(5000);
+      
       const text = await page.textContent('body');
 
-      if (text && /agotado/i.test(text)) {
+      if (text && /agotado|sold out|no disponible/i.test(text)) {
         console.log(`❌ Entradas agotadas: ${url}`);
       } else {
         console.log(`🎟️ ¡Entradas disponibles! ${url}`);
-
-        const msg = encodeURIComponent(`🎟️ ¡Entradas disponibles! ${url}`);
-        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${chatId}&text=${msg}`);
+        const msg = `🎟️ ¡Entradas disponibles! ${url}`;
+        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(msg)}`);
       }
     } catch (err) {
-      console.error(`Error revisando ${url}:`, err);
+      console.error(`Error revisando ${url}:`, err.message);
     }
   }
 
