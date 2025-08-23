@@ -14,15 +14,8 @@ if (!botToken || !chatId) {
   process.exit(1);
 }
 
-async function checkTickets() {
-  // Obtener ruta absoluta al binario de Chromium que Playwright instala
-  const browserExecutable = chromium.executablePath();
-
-  const browser = await chromium.launch({ 
-    headless: true,
-    executablePath: browserExecutable // <-- clave para GitHub Actions
-  });
-
+  async function checkTickets() {
+  const browser = await chromium.launch({ headless: true }); // simplificado
   const context = await browser.newContext();
   const page = await context.newPage();
 
