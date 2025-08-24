@@ -19,16 +19,11 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install  # Cambiado de npm ci a npm install
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Run monitor
-        run: node monitor.js
-        env:
-          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-          CHAT_ID: ${{ secrets.CHAT_ID }}
       - name: Run monitor
         run: node monitor.js
         env:
