@@ -16,12 +16,17 @@ if (!botToken || !chatId) {
 async function checkTickets() {
   const browser = await chromium.launch({
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-web-security']
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
   
-  const context = await browser.newContext({
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-    viewport: { width: 1280, height: 720 }
+  const context = await browser.newContext();
+  // Interceptar solicitudes de red para detectar respuestas de API
+  await context.route('**/*', (route, request) => {
+    const url = request.url();
+    if (url.includes('availability') || url.includes('inventory')) {
+      console.log('Interceptando solicitud de disponibilidad:', url);
+    }
+    route.continue();
   });
   
   const page = await context.newPage();
@@ -34,96 +39,94 @@ async function checkTickets() {
       await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
       
       // Esperar a que los elementos dinámicos se carguen
-      await page.waitForTimeout(8000);
+      await page.waitForTimeout(10000);
       
-      // 1. Verificar si hay mensajes de error claros
-      const errorMessages = [
-        "No hay suficientes entradas",
-        "Agotado",
-        "Sold Out",
-        "No disponible",
-        "no tickets available",
-        "no hay entradas"
+      // 1. Obtener todo el texto de la página
+      const pageText = await page.evaluate(() => document.body.innerText);
+      const lowerPageText = pageText.toLowerCase();
+      
+      // 2. Patrones que indican NO disponibilidad
+      const notAvailablePatterns = [
+        'no hay suficientes entradas',
+        'agotado',
+        'sold out',
+        'no disponible',
+        'no tickets available',
+        'currently not available',
+        'no results found',
+        'no events found',
+        'no se encontraron resultados'
       ];
       
-      let hasError = false;
-      const pageContent = await page.content();
+      // 3. Patrones que indican disponibilidad
+      const availablePatterns = [
+        'comprar entradas',
+        'buy tickets',
+        'seleccionar entradas',
+        'select tickets',
+        'available tickets',
+        'entradas disponibles'
+      ];
       
-      for (const msg of errorMessages) {
-        if (pageContent.toLowerCase().includes(msg.toLowerCase())) {
-          console.log(`Encontrado mensaje de error: ${msg}`);
-          hasError = true;
+      // 4. Buscar patrones de no disponibilidad
+      let isNotAvailable = false;
+      for (const pattern of notAvailablePatterns) {
+        if (lowerPageText.includes(pattern)) {
+          console.log(`Encontrado patrón de no disponibilidad: "${pattern}"`);
+          isNotAvailable = true;
           break;
         }
       }
       
-      // 2. Intentar encontrar y hacer clic en un botón de compra
-      let canPurchase = false;
-      if (!hasError) {
-        try {
-          // Buscar botones de compra de diferentes formas
-          const buySelectors = [
-            'button[data-testid="buy-button"]',
-            'a[data-testid="buy-button"]',
-            'button:has-text("Comprar")',
-            'a:has-text("Comprar")',
-            'button:has-text("Buy")',
-            'a:has-text("Buy")',
-            'button:has-text("Ver entradas")',
-            'a:has-text("Ver entradas")'
-          ];
-          
-          for (const selector of buySelectors) {
-            const buyButton = await page.$(selector);
-            if (buyButton && await buyButton.isVisible()) {
-              console.log(`Encontrado botón: ${selector}`);
-              
-              // Verificar si el botón está deshabilitado
-              const isDisabled = await buyButton.getAttribute('disabled');
-              if (!isDisabled) {
-                // Hacer clic en el botón
-                await buyButton.click();
-                await page.waitForTimeout(3000);
-                
-                // Verificar si apareció un mensaje de error después del clic
-                const newContent = await page.content();
-                let errorAfterClick = false;
-                
-                for (const msg of errorMessages) {
-                  if (newContent.toLowerCase().includes(msg.toLowerCase())) {
-                    console.log(`Error después del clic: ${msg}`);
-                    errorAfterClick = true;
-                    break;
-                  }
-                }
-                
-                if (!errorAfterClick) {
-                  canPurchase = true;
-                  console.log("Parece que se puede comprar");
-                }
-                
-                break;
-              }
-            }
-          }
-        } catch (clickError) {
-          console.log("Error al intentar hacer clic:", clickError.message);
+      // 5. Buscar patrones de disponibilidad
+      let isAvailable = false;
+      for (const pattern of availablePatterns) {
+        if (lowerPageText.includes(pattern)) {
+          console.log(`Encontrado patrón de disponibilidad: "${pattern}"`);
+          isAvailable = true;
+          break;
         }
       }
       
-      // 3. Verificar el estado final
-      if (hasError) {
+      // 6. Análisis de botones interactivos
+      const buttons = await page.$$('button, a');
+      let hasActiveBuyButton = false;
+      
+      for (const button of buttons) {
+        try {
+          const text = await button.textContent();
+          const isVisible = await button.isVisible();
+          const isDisabled = await button.evaluate(el => el.disabled);
+          
+          if (text && isVisible && !isDisabled) {
+            const buttonText = text.toLowerCase().trim();
+            if (buttonText.includes('comprar') || buttonText.includes('buy')) {
+              console.log(`Botón activo encontrado: "${text.trim()}"`);
+              hasActiveBuyButton = true;
+              break;
+            }
+          }
+        } catch (e) {
+          // Ignorar errores en elementos individuales
+        }
+      }
+      
+      // 7. Tomar decisión basada en múltiples factores
+      if (isNotAvailable) {
         console.log(`❌ Entradas agotadas: ${url}`);
-      } else if (canPurchase) {
+      } else if ((isAvailable || hasActiveBuyButton) && !isNotAvailable) {
         console.log(`🎟️ ¡Entradas disponibles! ${url}`);
         const msg = `🎟️ ¡Entradas disponibles! ${url}`;
         await fetch(`https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(msg)}`);
       } else {
-        console.log(`⚠️ Estado indeterminado: ${url}. Revisando manualmente...`);
+        console.log(`⚠️ Estado indeterminado: ${url}`);
+        // Para debugging avanzado
+        await page.screenshot({ path: 'debug.png', fullPage: true });
+        console.log('Captura de pantalla guardada como debug.png');
         
-        // Guardar captura de pantalla para debugging
-        await page.screenshot({ path: 'debug-screenshot.png', fullPage: true });
-        console.log("Captura de pantalla guardada como debug-screenshot.png");
+        // También guardar el HTML para análisis
+        const html = await page.content();
+        // require('fs').writeFileSync('debug.html', html); // Descomentar si necesitas analizar el HTML
       }
       
     } catch (err) {
@@ -134,7 +137,34 @@ async function checkTickets() {
   await browser.close();
 }
 
+// Función para análisis manual
+async function manualAnalysis() {
+  const browser = await chromium.launch({ headless: false }); // Abrir navegador visible
+  const page = await browser.newPage();
+  
+  await page.goto("https://www.ticketmaster.es/event/lady-gaga-the-mayhem-ball-entradas/2082455188", { 
+    waitUntil: 'networkidle', 
+    timeout: 60000 
+  });
+  
+  await page.waitForTimeout(10000);
+  
+  // Tomar capturas para análisis
+  await page.screenshot({ path: 'manual-analysis.png', fullPage: true });
+  
+  // Obtener todo el texto visible
+  const pageText = await page.evaluate(() => document.body.innerText);
+  console.log("Texto completo de la página:");
+  console.log(pageText);
+  
+  await browser.close();
+}
+
+// Ejecutar la verificación principal
 checkTickets().catch(err => {
   console.error("Error general:", err);
   process.exit(1);
 });
+
+// Para análisis manual, descomenta la siguiente línea:
+// manualAnalysis();
