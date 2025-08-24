@@ -2,7 +2,7 @@ name: Ticket Monitor
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "*/10 * * * *"  # Reducir frecuencia para evitar detección
   workflow_dispatch:
 
 jobs:
@@ -15,7 +15,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 18
+          node-version: 22
           cache: 'npm'
 
       - name: Install dependencies
@@ -30,9 +30,11 @@ jobs:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
 
-      - name: Upload debug screenshot
+      - name: Upload debug files
         if: failure()
         uses: actions/upload-artifact@v3
         with:
-          name: debug-screenshots
-          path: debug-screenshot.png
+          name: debug-files
+          path: |
+            debug.png
+            debug.html
