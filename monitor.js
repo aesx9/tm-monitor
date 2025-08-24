@@ -1,5 +1,5 @@
-const playwright = require('playwright');
-const fetch = require('node-fetch');
+import playwright from 'playwright';
+import fetch from 'node-fetch';
 
 const urls = [
   "https://www.ticketmaster.es/event/lady-gaga-the-mayhem-ball-entradas/2082455188"

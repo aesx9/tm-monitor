@@ -18,11 +18,11 @@ jobs:
           node-version: 18
           cache: 'npm'
 
-      - name: Clean install dependencies
-        run: |
-          npm ci
-          npm install node-fetch@2
-          npx playwright install chromium
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
 
       - name: Run monitor
         run: node monitor.js
