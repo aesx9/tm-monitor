@@ -2,7 +2,7 @@ name: Ticket Monitor
 
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -10,10 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4  # Actualizado a v4
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4  # Actualizado a v4
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: 'npm'
@@ -29,12 +29,3 @@ jobs:
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
-
-      - name: Upload debug files
-        if: failure()
-        uses: actions/upload-artifact@v4  # Actualizado a v4
-        with:
-          name: debug-files
-          path: |
-            debug.png
-            debug.html
