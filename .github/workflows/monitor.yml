@@ -2,7 +2,7 @@ name: Ticket Monitor
 
 on:
   schedule:
-    - cron: "*/10 * * * *"  # Reducir frecuencia para evitar detección
+    - cron: "*/10 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -10,10 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4  # Actualizado a v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4  # Actualizado a v4
         with:
           node-version: 22
           cache: 'npm'
@@ -32,7 +32,7 @@ jobs:
 
       - name: Upload debug files
         if: failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4  # Actualizado a v4
         with:
           name: debug-files
           path: |
