@@ -29,15 +29,44 @@ async function checkTickets() {
       await page.waitForTimeout(5000);
 
       const bodyText = await page.textContent('body');
-      const hasSoldOutText = bodyText && /agotado|sold out|no disponible/i.test(bodyText);
 
-      // --- 1. Venta directa ---
-      const buyButton = await page.$('button[data-qa="buy-tickets"], button:has-text("Comprar"), a:has-text("Comprar")');
-      const isBuyEnabled = buyButton ? await buyButton.isEnabled() : false;
-      const hasPrice = bodyText && /€\s?\d+/.test(bodyText);
-      const hasQuantityField = await page.$('select[name="quantity"], input[name="quantity"]');
-
-      const directAvailable = isBuyEnabled && hasPrice && hasQuantityField;
+      // --- 1. Comprobar si está "Entradas agotadas" ---
+      const hasSoldOut = /entradas agotadas/i.test(bodyText);
 
       // --- 2. Fan-to-Fan ---
-      const fanToFanBlock = await page.$('section:has-text("Las entradas que han puesto a la venta otr
+      let fanToFanAvailable = false;
+      const fanToFanSection = await page.locator('section:has-text("Las entradas que han puesto a la venta otros fans")');
+      if (await fanToFanSection.count() > 0) {
+        const listings = await fanToFanSection.locator('li, div[role="listitem"]').count();
+        fanToFanAvailable = listings > 0;
+      }
+
+      // --- 3. Venta directa ---
+      const buyButton = await page.$('button:has-text("Comprar")');
+      const isBuyEnabled = buyButton ? await buyButton.isEnabled() : false;
+      const hasPrice = bodyText && /€\s?\d+/.test(bodyText);
+      const directAvailable = isBuyEnabled && hasPrice;
+
+      // --- Evaluación final ---
+      if (hasSoldOut && !fanToFanAvailable && !directAvailable) {
+        console.log(`❌ Entradas agotadas: ${url}`);
+      } else if (fanToFanAvailable || directAvailable) {
+        console.log(`🎟️ ¡Entradas disponibles! ${url}`);
+        const msg = `🎟️ ¡Entradas disponibles! ${url}`;
+        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(msg)}`);
+      } else {
+        console.log(`ℹ️ No se detectan entradas en este momento: ${url}`);
+      }
+
+    } catch (error) {
+      console.error(`⚠️ Error revisando ${url}:`, error.message);
+    }
+  }
+
+  await browser.close();
+}
+
+checkTickets().catch(err => {
+  console.error("Error general:", err);
+  process.exit(1);
+});
