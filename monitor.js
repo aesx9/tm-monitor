@@ -2,7 +2,8 @@ import { chromium } from 'playwright';
 import fetch from 'node-fetch';
 
 const urls = [
-  "https://www.ticketmaster.es/event/lady-gaga-the-mayhem-ball-entradas/2082455188"
+  "https://www.ticketmaster.es/event/lady-gaga-the-mayhem-ball-entradas/2082455188",
+  "https://www.ticketmaster.es/event/lady-gaga-the-mayhem-ball-entradas/377280266"
 ];
 
 const botToken = process.env.BOT_TOKEN;
@@ -22,9 +23,10 @@ async function checkTickets() {
   const context = await browser.newContext();
   const page = await context.newPage();
 
+  let index = 1;
   for (const url of urls) {
     try {
-      console.log(`🔍 Revisando: ${url}`);
+      console.log(`\n🔍 [${index}/${urls.length}] Revisando: ${url}`);
       await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
       await page.waitForTimeout(5000);
 
@@ -49,18 +51,20 @@ async function checkTickets() {
 
       // --- Evaluación final ---
       if (hasSoldOut && !fanToFanAvailable && !directAvailable) {
-        console.log(`❌ Entradas agotadas: ${url}`);
+        console.log(`❌ [${index}] Entradas agotadas: ${url}`);
       } else if (fanToFanAvailable || directAvailable) {
-        console.log(`🎟️ ¡Entradas disponibles! ${url}`);
+        console.log(`🎟️ [${index}] ¡Entradas disponibles! ${url}`);
         const msg = `🎟️ ¡Entradas disponibles! ${url}`;
         await fetch(`https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(msg)}`);
       } else {
-        console.log(`ℹ️ No se detectan entradas en este momento: ${url}`);
+        console.log(`ℹ️ [${index}] No se detectan entradas en este momento: ${url}`);
       }
 
     } catch (error) {
-      console.error(`⚠️ Error revisando ${url}:`, error.message);
+      console.error(`⚠️ [${index}] Error revisando ${url}:`, error.message);
     }
+
+    index++;
   }
 
   await browser.close();
@@ -70,7 +74,3 @@ checkTickets().catch(err => {
   console.error("Error general:", err);
   process.exit(1);
 });
-
-// ⚠️ DEBUG: Forzar mensaje aunque no haya entradas
-const debugMsg = "🔔 Test de notificación: el bot funciona correctamente";
-await fetch(`https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(debugMsg)}`);
