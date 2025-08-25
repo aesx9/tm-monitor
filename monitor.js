@@ -70,3 +70,7 @@ checkTickets().catch(err => {
   console.error("Error general:", err);
   process.exit(1);
 });
+
+// ⚠️ DEBUG: Forzar mensaje aunque no haya entradas
+const debugMsg = "🔔 Test de notificación: el bot funciona correctamente";
+await fetch(`https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(debugMsg)}`);
