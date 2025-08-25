@@ -27,31 +27,37 @@ async function checkTickets() {
       console.log(`Revisando: ${url}`);
       await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
       await page.waitForTimeout(5000);
+      
+      // 1. Buscar texto indicativo de agotado en todo el body
+      const bodyText = await page.textContent('body');
+      const agotadoTexto = bodyText && /agotado|sold out|no disponible/i.test(bodyText);
 
-      // 1. Comprobación de texto en la página
-      const text = await page.textContent('body');
-      const agotado = text && /agotado|sold out|no disponible/i.test(text);
-
-      // 2. Comprobación del atributo data-active en SVG para "PISTA GENERAL" o secciones relevantes
-      // Si necesitas otra sección, cambia el [data-section-name]
+      // 2. Verificar atributo data-active en el SVG de la sección "PISTA GENERAL"
+      // Cambia selector si quieres otra sección
       const pistaGeneral = await page.$('path[data-section-name="PISTA GENERAL"]');
-      let pistaActive = null;
+      let dataActive = null;
       if (pistaGeneral) {
-        pistaActive = await pistaGeneral.getAttribute('data-active');
+        dataActive = await pistaGeneral.getAttribute('data-active');
       }
 
-      if (agotado || pistaActive === "false") {
-        console.log(`❌ Entradas agotadas o sección no disponible: ${url}`);
-      } else if (pistaActive === "true" || !agotado) {
+      // 3. Verificar botón de compra activo y habilitado
+      const buyButton = await page.$('button[data-qa="buy-tickets"], button:has-text("Comprar"), a:has-text("Comprar")');
+      const isBuyButtonEnabled = buyButton ? await buyButton.isEnabled() : false;
+
+      // Decidir estado final combinando resultados para evitar falsos positivos
+      if (agotadoTexto || dataActive === "false" || !isBuyButtonEnabled) {
+        console.log(`❌ Entradas agotadas o no disponibles: ${url}`);
+      } else if (dataActive === "true" && isBuyButtonEnabled) {
         console.log(`🎟️ ¡Entradas disponibles! ${url}`);
         const msg = `🎟️ ¡Entradas disponibles! ${url}`;
         await fetch(`https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(msg)}`);
       } else {
-        console.log(`⚠️ Estado indeterminado: ${url}`);
+        // Caso indeterminado, no anunciar disponibilidad
+        console.log(`⚠️ Estado indeterminado: ${url}. Revisar manualmente.`);
       }
 
-    } catch (err) {
-      console.error(`Error revisando ${url}:`, err.message);
+    } catch (error) {
+      console.error(`Error revisando ${url}:`, error.message);
     }
   }
   await browser.close();
@@ -61,4 +67,3 @@ checkTickets().catch(err => {
   console.error("Error general:", err);
   process.exit(1);
 });
-
