@@ -27,30 +27,31 @@ async function checkTickets() {
   for (const url of urls) {
     try {
       console.log(`\n🔍 [${index}/${urls.length}] Revisando: ${url}`);
-      await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
       await page.waitForTimeout(5000);
 
-      const bodyText = await page.textContent('body');
-
-      // --- 1. Comprobar si está "Entradas agotadas" ---
-      const hasSoldOut = /entradas agotadas/i.test(bodyText);
+      // --- 1. Agotado ---
+      const soldOut = await page.locator('text="Entradas agotadas"').count() > 0;
 
       // --- 2. Fan-to-Fan ---
       let fanToFanAvailable = false;
-      const fanToFanSection = await page.locator('section:has-text("Las entradas que han puesto a la venta otros fans")');
+      const fanToFanSection = page.locator('section:has-text("Las entradas que han puesto a la venta otros fans")');
       if (await fanToFanSection.count() > 0) {
         const listings = await fanToFanSection.locator('li, div[role="listitem"]').count();
         fanToFanAvailable = listings > 0;
       }
 
       // --- 3. Venta directa ---
-      const buyButton = await page.$('button:has-text("Comprar")');
-      const isBuyEnabled = buyButton ? await buyButton.isEnabled() : false;
-      const hasPrice = bodyText && /€\s?\d+/.test(bodyText);
-      const directAvailable = isBuyEnabled && hasPrice;
+      let directAvailable = false;
+      const buyButton = page.locator('button:has-text("Comprar")');
+      if (await buyButton.count() > 0) {
+        const enabled = await buyButton.first().isEnabled();
+        const hasPrice = await page.locator('span:has-text("€")').count() > 0;
+        directAvailable = enabled && hasPrice;
+      }
 
       // --- Evaluación final ---
-      if (hasSoldOut && !fanToFanAvailable && !directAvailable) {
+      if (soldOut && !fanToFanAvailable && !directAvailable) {
         console.log(`❌ [${index}] Entradas agotadas: ${url}`);
       } else if (fanToFanAvailable || directAvailable) {
         console.log(`🎟️ [${index}] ¡Entradas disponibles! ${url}`);
@@ -63,7 +64,6 @@ async function checkTickets() {
     } catch (error) {
       console.error(`⚠️ [${index}] Error revisando ${url}:`, error.message);
     }
-
     index++;
   }
 
